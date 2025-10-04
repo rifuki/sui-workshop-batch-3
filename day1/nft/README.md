@@ -30,15 +30,7 @@ Pastikan sudah menyelesaikan **INSTALLATION.md** di root folder:
 
 # Smart Contract NFT
 
-## Step 1: Setup Project Structure
-
-```bash
-# Buat folder project
-mkdir -p nft
-cd nft
-```
-
-## Step 2: Initialize Sui Move Package
+## Step 1: Initialize Sui Move Package
 
 ```bash
 # Initialize Move package
@@ -46,7 +38,7 @@ sui move new nft
 cd nft
 ```
 
-## Step 3: Create Move.toml
+## Step 2: Create Move.toml
 
 **File:** `Move.toml`
 
@@ -66,7 +58,7 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 [dev-dependencies]
 ```
 
-## Step 4: Create NFT Contract
+## Step 3: Create NFT Contract
 
 **File:** `sources/nft.move`
 
@@ -225,7 +217,190 @@ public fun burn(nft: NFT)
 
 ---
 
-## Step 5: Build Contract
+## Step 4: Create Unit Tests
+
+**File:** `tests/nft_tests.move`
+
+```move
+#[test_only]
+module nft_package::nft_module_tests {
+    use std::string;
+    use sui::test_scenario;
+
+    use nft_package::nft_module;
+
+    const E_NFT_NAME_NOT_VALID: u64 = 1001;
+    const E_NFT_STILL_EXISTS: u64 = 1002;
+
+    #[test]
+    fun test_mint_nft() {
+        let user = @0xFACE;
+
+        let mut scenario = test_scenario::begin(user);
+        {
+            nft_module::init_for_testing(test_scenario::ctx(&mut scenario));
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            nft_module::mint(
+                string::utf8(b"NFT Test Name"),
+                string::utf8(b"NFT Test Description"),
+                string::utf8(b"https://example.com/image.jpeg"),
+                test_scenario::ctx(&mut scenario)
+            );
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let nft_object = test_scenario::take_from_sender<nft_module::NFT>(&scenario);
+            assert!(nft_module::get_nft_name(&nft_object) == string::utf8(b"NFT Test Name"), E_NFT_NAME_NOT_VALID);
+
+            test_scenario::return_to_sender(&scenario, nft_object);
+        };
+
+        test_scenario::end(scenario);
+    }
+
+
+    #[test]
+    fun test_burn_nft() {
+        let user = @0xFACE;
+
+        let mut scenario = test_scenario::begin(user);
+        {
+            nft_module::init_for_testing(test_scenario::ctx(&mut scenario));
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            nft_module::mint(
+                string::utf8(b"NFT Test Name"),
+                string::utf8(b"NFT Test Description"),
+                string::utf8(b"https://example.com/image.jpeg"),
+                test_scenario::ctx(&mut scenario)
+            );
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let nft_object = test_scenario::take_from_sender<nft_module::NFT>(&scenario);
+            assert!(nft_module::get_nft_name(&nft_object) == string::utf8(b"NFT Test Name"), E_NFT_NAME_NOT_VALID);
+
+            test_scenario::return_to_sender(&scenario, nft_object);
+        };
+
+        // Burn the NFT
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let nft_object = test_scenario::take_from_sender<nft_module::NFT>(&scenario);
+            nft_module::burn(nft_object);
+        };
+        // Ensure the NFT is burned
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            assert!(!test_scenario::has_most_recent_for_sender<nft_module::NFT>(&scenario), E_NFT_STILL_EXISTS);
+        };
+
+        test_scenario::end(scenario);
+    }
+
+}
+```
+
+---
+
+## 📚 Penjelasan Unit Tests
+
+### Test Structure
+
+```move
+#[test_only]
+module nft_package::nft_module_tests
+```
+
+**Penjelasan:**
+- `#[test_only]`: Module ini hanya di-compile saat testing
+- Naming convention: `{module_name}_tests`
+
+### Test Scenario Pattern
+
+```move
+let mut scenario = test_scenario::begin(user);
+```
+
+**Pattern:**
+1. **Begin scenario** dengan user address
+2. **Transaction 1**: Init module
+3. **Next tx**: Mint NFT
+4. **Next tx**: Verify/Assert
+5. **End scenario**: Cleanup
+
+### Test 1: test_mint_nft()
+
+**Flow:**
+1. Setup user `@0xFACE`
+2. Init module dengan `init_for_testing()`
+3. Mint NFT dengan test data
+4. Take NFT dari sender
+5. Assert name sesuai
+6. Return NFT ke sender
+7. End scenario
+
+**Key functions:**
+- `test_scenario::take_from_sender<NFT>()`: Ambil object dari sender
+- `test_scenario::return_to_sender()`: Return object (wajib jika punya `key`)
+- `assert!(condition, error_code)`: Validasi kondisi
+
+### Test 2: test_burn_nft()
+
+**Flow:**
+1. Setup & mint NFT (sama seperti test 1)
+2. Verify NFT exists
+3. **Burn NFT**
+4. Assert NFT sudah tidak ada dengan `has_most_recent_for_sender`
+
+**Key assertion:**
+```move
+assert!(!test_scenario::has_most_recent_for_sender<nft_module::NFT>(&scenario), E_NFT_STILL_EXISTS);
+```
+- `!has_most_recent_for_sender`: Memastikan NFT tidak ada lagi
+
+### Error Codes
+
+```move
+const E_NFT_NAME_NOT_VALID: u64 = 1001;
+const E_NFT_STILL_EXISTS: u64 = 1002;
+```
+
+Best practice untuk testing - error codes untuk debugging yang lebih mudah.
+
+---
+
+## Step 5: Run Tests
+
+```bash
+# Run all tests
+sui move test
+
+# Run specific test
+sui move test test_mint_nft
+
+# Run with verbose output
+sui move test --verbose
+```
+
+**Expected Output:**
+```
+Running Move unit tests
+[ PASS    ] nft_package::nft_module_tests::test_mint_nft
+[ PASS    ] nft_package::nft_module_tests::test_burn_nft
+Test result: OK. Total tests: 2; passed: 2; failed: 0
+```
+
+---
+
+## Step 6: Build Contract
 
 ```bash
 # Build contract
@@ -240,7 +415,7 @@ BUILDING nft
 Build Successful
 ```
 
-## Step 6: Deploy to Testnet
+## Step 7: Deploy to Testnet
 
 ```bash
 # Deploy/Publish contract
@@ -251,17 +426,14 @@ sui client publish
 
 Dari output, catat:
 1. **Package ID**: `0xabcd1234...`
-2. **Publisher Object ID**: `0x...`
-3. **Display Object ID**: `0x...`
-4. **Transaction Digest**: `ABC123...`
 
 **Copy Package ID ke notepad/notes!**
 
 ---
 
-## 🧪 Step 7: Test via CLI
+## 🧪 Step 8: Test via CLI
 
-### 7.1 Mint NFT Pertama
+### 8.1 Mint NFT Pertama
 
 ```bash
 # Mint NFT dengan data
@@ -283,7 +455,7 @@ sui client call \
 
 **Simpan NFT Object ID dari output!**
 
-### 7.2 View NFT Details
+### 8.2 View NFT Details
 
 ```bash
 # Lihat details NFT
@@ -304,7 +476,7 @@ sui client object <NFT_OBJECT_ID> --json | jq '.content.fields'
 }
 ```
 
-### 7.3 Mint NFT Collection
+### 8.3 Mint NFT Collection
 
 Mari buat collection 3 NFT:
 
@@ -340,17 +512,25 @@ sui client call \
     "https://picsum.photos/400/400?random=3"
 ```
 
-### 7.4 List All Your NFTs
+### 8.4 List All Your NFTs
 
 ```bash
 # Lihat semua NFT yang Anda miliki
 sui client objects
-
-# Atau filter by type
-sui client objects | grep "<PACKAGE_ID>::nft_module::NFT"
 ```
 
-### 7.5 Burn NFT
+**Check di Explorer untuk detail lengkap:**
+1. Buka https://suiscan.xyz/testnet
+2. Paste **address wallet Anda** di search bar lalu lihat account.
+3. Scroll ke Assets pada Tab **"NFT"** - lihat semua NFT yang Anda miliki
+4. Klik salah satu NFT untuk detail:
+   - Image preview
+   - Metadata (name, description)
+   - Creator address
+   - Current owner
+   - Transaction history
+
+### 8.5 Burn NFT
 
 ```bash
 # Burn/Destroy NFT (permanent!)
@@ -363,7 +543,7 @@ sui client call \
 
 ⚠️ **Warning:** Burning permanent! NFT tidak bisa di-recover.
 
-### 7.6 Transfer NFT
+### 8.6 Transfer NFT
 
 ```bash
 # Transfer NFT ke address lain
@@ -374,7 +554,7 @@ sui client transfer \
 
 **Contoh recipient address:** Second wallet / teman di sebelah!
 
-### 7.7 View di Explorer
+### 8.7 View di Explorer
 
 1. Buka https://suiscan.xyz/testnet
 2. Paste **NFT Object ID**
