@@ -102,18 +102,15 @@ sui --version
 ### Install Extension Dulu
 
 1. **Chromium Based Browser**:
-   - https://chromewebstore.google.com/detail/opcgpfmipidbgpenhmajoajpbobppdilo
+   - https://chromewebstore.google.com/detail/slush-%E2%80%94-a-sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil
 
 ### Create New Wallet di Extension
 
 1. Buka extension yang sudah terinstall
-2. Klik **"Create New Wallet"**
+2. Klik **"More Options -> Create a passphrase account"**
 3. **Backup Recovery Phrase** (12 kata)
-   - ⚠️ Tulis di kertas, simpan aman!
-   - Jangan screenshot atau simpan digital
-4. Confirm recovery phrase
-5. Set password untuk extension
-6. **Switch ke Testnet**:
+4. Set password untuk extension
+5. **Switch ke Testnet**:
    - Settings → Network → **Testnet**
 
 ### Copy Address
@@ -144,7 +141,7 @@ sui keytool import "paste twelve word recovery phrase here" ed25519
 │ publicBase64Key │  xxxxxx.........                │
 │ keyScheme       │  ed25519                        │
 │ flag            │  0                              │
-│ peerId          │  e.............                 │
+│ peerId          │  xxxxxxxxxxxxxx                │
 ╰─────────────────┴─────────────────────────────────╯
 ```
 

@@ -318,7 +318,7 @@ Dari output, catat:
 
 ```bash
 # View di Explorer
-# Buka: https://suiexplorer.com/?network=testnet
+# Buka: https://suiscan.xyz/testnet
 # Paste Transaction Digest atau Package ID
 
 # Atau via CLI
@@ -432,7 +432,7 @@ sui client call --package <PACKAGE_ID> --module counter_module --function decrem
 
 **Expected Error:**
 ```
-Error: Transaction failed with status: MoveAbort(
+Error executing transaction `digest`: MoveAbort(
   Location: <PACKAGE_ID>::counter_module,
   Code: 101
 )
@@ -464,12 +464,10 @@ Pastikan semua ini berhasil sebelum lanjut ke frontend:
 - [x] Object terlihat di Explorer
 
 ---
----
----
+<br/>
+<br/>
 
-<br/>
-<br/>
-<br/>
+---
 
 # PART 2: Frontend (React + TypeScript)
 ## Step 1: Create UI Project
@@ -478,8 +476,8 @@ Pastikan semua ini berhasil sebelum lanjut ke frontend:
 # Kembali ke folder counter
 cd ..  # sekarang di: counter/
 
-# Create Vite React project dengan Bun (recommended)
-bun create vite ui --template react-ts
+# Create Vite React project dengan Bun (recommended, skip prompts)
+printf "n" | bun create vite ui --template react-ts
 cd ui
 
 # Atau dengan npm
@@ -555,12 +553,27 @@ export const { networkConfig, useNetworkVariable } = createNetworkConfig({
 });
 ```
 
-**⚠️ GANTI `PASTE_YOUR_PACKAGE_ID_HERE`** dengan Package ID dari Step 7 Part 1!
+**⚠️ PENTING: Deploy Contract Ulang untuk Frontend!**
 
-Contoh:
+Sebelum isi Package ID, **deploy ulang contract** karena kita butuh Package ID yang fresh untuk frontend:
+
+```bash
+# Di folder counter/contract
+sui client publish
+
+# Simpan Package ID dari output (berbeda dari sebelumnya)
+```
+
+**Lalu ganti `PASTE_YOUR_PACKAGE_ID_HERE`** dengan Package ID baru:
+
 ```typescript
 packageId: "0x87114bacd0d0e9378a9866f894d6a235c59a4bd96bdfba1de390ba27e05d8172"
 ```
+
+**Kenapa deploy ulang?**
+- CLI testing (Part 1) sudah consume counter objects sebelumnya
+- Frontend butuh counter object fresh untuk test `create()` function
+- Package ID baru = state bersih untuk testing UI
 
 ## Step 4: Create Custom Hooks
 
@@ -999,11 +1012,31 @@ VITE v5.x.x  ready in xxx ms
 
 # 🔧 Troubleshooting
 
+### Tombol "Create Counter Object" tidak bekerja / No response
+**Penyebab paling umum:** Package ID belum diganti atau salah!
+
+**Solusi:**
+1. Buka `src/networkConfig.ts`
+2. Pastikan `packageId` sudah diganti dari `"PASTE_YOUR_PACKAGE_ID_HERE"` ke Package ID yang benar
+3. Verify Package ID benar:
+   ```bash
+   # Check di terminal tempat deploy
+   # Atau cek di explorer: https://suiscan.xyz/testnet/object/<PACKAGE_ID>
+   ```
+4. Save file & refresh browser
+
+**Cek di Browser Console (F12):**
+- Jika ada error "Package not found" → Package ID salah
+- Jika ada error "No connected account" → Connect wallet dulu
+
 ### Error: "Package not found"
 - **Solusi**: Verify Package ID di `networkConfig.ts` apakah sudah benar
+- **Double check**: Copy ulang Package ID dari terminal saat deploy
+- **Pastikan**: Deploy ulang contract untuk dapat Package ID fresh (lihat Step 3)
 
 ### Error: "Insufficient gas"
-- **Solusi**: Request faucet lagi: `sui client faucet`
+- **Solusi**: Request faucet lagi ke https://faucet.testnet.sui.io
+- Atau via CLI: `sui client faucet`
 
 ### Counter tidak update setelah increment
 - **Solusi**: Refresh browser atau wait 5 detik (indexing delay)
@@ -1012,7 +1045,8 @@ VITE v5.x.x  ready in xxx ms
 - **Solusi**:
   - Pastikan Sui Wallet extension terinstall
   - Switch network ke Testnet di wallet
-  - Clear browser cache
+  - Refresh halaman & klik Connect Wallet lagi
+  - Clear browser cache jika masih gagal
 
 ### Build error: Module not found
 - **Solusi dengan Bun**:

@@ -26,12 +26,10 @@ export function useMutateCreateCounter() {
       if (!currentAccount) throw new Error("No connected account");
 
       const tx = new Transaction();
-      const [counterObject] = tx.moveCall({
+      tx.moveCall({
         target: `${packageId}::counter_module::create`,
         arguments: [],
       });
-
-      tx.transferObjects([counterObject], currentAccount.address);
 
       const { digest } = await signAndExecute({ transaction: tx });
       const response = await suiClient.waitForTransaction({
@@ -44,6 +42,7 @@ export function useMutateCreateCounter() {
       return response;
     },
     onSuccess: () => {
+      alert("Create counter object success");
       queryClient.invalidateQueries({ queryKey: queryKeyCounterObject });
     },
     onError: (error) => {
