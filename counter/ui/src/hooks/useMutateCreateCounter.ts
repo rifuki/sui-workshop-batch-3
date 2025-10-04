@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useNetworkVariable } from "../networkConfig";
-import { queryKeyOwnedCounterValue } from "./useQueryCounterValue";
+import { queryKeyCounterObject } from "./useQueryCounterObject";
 
 const mutateKeyCreateCounter = ["mutate", "create-counter"];
 
@@ -44,7 +44,7 @@ export function useMutateCreateCounter() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeyOwnedCounterValue });
+      queryClient.invalidateQueries({ queryKey: queryKeyCounterObject });
     },
     onError: (error) => {
       console.error("Error creating counter object", error);

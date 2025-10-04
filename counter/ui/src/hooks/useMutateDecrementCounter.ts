@@ -6,11 +6,11 @@ import {
 import { Transaction } from "@mysten/sui/transactions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNetworkVariable } from "../networkConfig";
-import { queryKeyOwnedCounterValue } from "./useQueryCounterValue";
+import { queryKeyCounterObject } from "./useQueryCounterObject";
 
-const mutateKeyIncrementCounterValue = ["mutate", "increment-counter-value"];
+const mutateKeyDecrementCounter = ["mutate", "decrement-counter"];
 
-export function useMutateIncrementCounterValue() {
+export function useMutateDecrementCounter() {
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const suiClient = useSuiClient();
@@ -19,13 +19,13 @@ export function useMutateIncrementCounterValue() {
   const packageId = useNetworkVariable("packageId");
 
   return useMutation({
-    mutationKey: mutateKeyIncrementCounterValue,
+    mutationKey: mutateKeyDecrementCounter,
     mutationFn: async (counterObject: string) => {
       if (!currentAccount) throw new Error("No connected account");
 
       const tx = new Transaction();
       tx.moveCall({
-        target: `${packageId}::counter_module::increment`,
+        target: `${packageId}::counter_module::decrement`,
         arguments: [tx.object(counterObject)],
       });
 
@@ -46,12 +46,12 @@ export function useMutateIncrementCounterValue() {
         new_value: number;
       };
 
-      alert("Increment counter success new_value: " + event.new_value);
+      alert("Decrement counter success new_value: " + event.new_value);
 
-      queryClient.invalidateQueries({ queryKey: queryKeyOwnedCounterValue });
+      queryClient.invalidateQueries({ queryKey: queryKeyCounterObject });
     },
     onError: (error) => {
-      console.error("Error increment counter", error);
+      console.error("Error decrement counter", error);
     },
   });
 }

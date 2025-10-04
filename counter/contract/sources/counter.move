@@ -21,7 +21,8 @@ module 0x0::counter_module {
         new_value: u64
     }
 
-    public fun create(ctx: &mut TxContext): CounterObject {
+    #[allow(lint(self_transfer))]
+    public fun create(ctx: &mut TxContext) {
         let counter_object = CounterObject {
             id: object::new(ctx),
             value: 0
@@ -31,7 +32,7 @@ module 0x0::counter_module {
             counter_object: object::uid_to_inner(&counter_object.id)
         });
 
-        counter_object
+        transfer::public_transfer(counter_object, tx_context::sender(ctx))
     }
 
     public fun increment(counter: &mut CounterObject) {

@@ -3,21 +3,21 @@ import { useNetworkVariable } from "../networkConfig";
 import { useQuery } from "@tanstack/react-query";
 import type { SuiObjectResponse } from "@mysten/sui/client";
 
-export const queryKeyOwnedCounterValue = ["owned-counter"];
+export const queryKeyCounterObject = ["counter-object"];
 
 type CounterFields = {
   id: { id: string };
   value: number;
 };
 
-export function useQueryOwnedCounterValue() {
+export function useQueryCounterObject() {
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
 
   const packageId = useNetworkVariable("packageId");
 
   return useQuery({
-    queryKey: queryKeyOwnedCounterValue,
+    queryKey: queryKeyCounterObject,
     queryFn: async () => {
       if (!currentAccount) throw new Error("No connected account");
 

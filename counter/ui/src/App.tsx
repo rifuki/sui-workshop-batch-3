@@ -3,20 +3,18 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
 
-import { useQueryOwnedCounterValue } from "./hooks/useQueryCounterValue";
+import { useQueryCounterObject } from "./hooks/useQueryCounterObject";
 import { useMutateCreateCounter } from "./hooks/useMutateCreateCounter";
-import { useMutateIncrementCounterValue } from "./hooks/useMutateIncrementCounterValue";
-import { useMutateDecrementCounterValue } from "./hooks/useMutateDecrementCounterValue";
+import { useMutateIncrementCounter } from "./hooks/useMutateIncrementCounter";
+import { useMutateDecrementCounter } from "./hooks/useMutateDecrementCounter";
 
 function App() {
   const currentAccount = useCurrentAccount();
 
-  const { data } = useQueryOwnedCounterValue();
+  const { data } = useQueryCounterObject();
   const { mutate: mutateCreateCounter } = useMutateCreateCounter();
-  const { mutate: mutateIncrementCounterValue } =
-    useMutateIncrementCounterValue();
-  const { mutate: mutateDecrementCounterValue } =
-    useMutateDecrementCounterValue();
+  const { mutate: mutateIncrementCounter } = useMutateIncrementCounter();
+  const { mutate: mutateDecrementCounter } = useMutateDecrementCounter();
 
   const renderButton = () => {
     if (!currentAccount) return <ConnectButton />;
@@ -31,17 +29,13 @@ function App() {
     return (
       <>
         <div className="card">
-          <button onClick={() => mutateIncrementCounterValue(data.id.id)}>
-            +1
-          </button>
+          <button onClick={() => mutateIncrementCounter(data.id.id)}>+1</button>
         </div>
 
         <button className="card">{data.value}</button>
 
         <div className="card">
-          <button onClick={() => mutateDecrementCounterValue(data.id.id)}>
-            -1
-          </button>
+          <button onClick={() => mutateDecrementCounter(data.id.id)}>-1</button>
         </div>
       </>
     );
