@@ -364,7 +364,7 @@ jika lambat, ganti metode pakai suiup atau langsung pakai yang pre-compiled dari
 
 Setelah semua terinstall:
 
-1. ✅ Buka **counter/README.md** untuk mulai coding
+1. ✅ Buka **day1/counter/README.md** untuk mulai coding
 2. ✅ Follow step-by-step tutorial
 3. ✅ Build & deploy contract pertama Anda!
 

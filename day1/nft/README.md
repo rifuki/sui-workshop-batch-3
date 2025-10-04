@@ -1,32 +1,173 @@
 # NFT (Non-Fungible Token) - Sui Workshop Batch 3
 
-## 📖 Deskripsi
-NFT module mendemonstrasikan cara membuat **Non-Fungible Token** di Sui blockchain dengan metadata lengkap dan Display standard. Setiap NFT unik dan tidak dapat ditukar 1:1 seperti token biasa.
+## 📖 Overview
 
-## 🎯 Apa yang Akan Dipelajari
-- ✅ Konsep NFT dan uniqueness
-- ✅ Display standard untuk metadata
-- ✅ Publisher & Package capabilities
-- ✅ Object creation dengan custom fields
-- ✅ URL handling untuk images
+NFT module adalah contoh implementasi **Non-Fungible Token** di Sui blockchain dengan:
+- ✅ **Display Standard** - Metadata untuk wallet & explorer
+- ✅ **Creator Field** - Track pembuat NFT
+- ✅ **Mint & Burn** - Create dan destroy NFT
 
----
-
-## 📁 Struktur Project
-
-```
-nft/
-├── sources/
-│   └── nft.move
-├── Move.toml
-└── tests/
-```
+Peserta diharapkan **membangun project** dengan code dari README ini. 😃
 
 ---
 
-## 🔍 Review Smart Contract
+## 🎯 Learning Objectives
 
-### Struktur NFT
+- Memahami konsep NFT dan uniqueness
+- Implementasi Display standard untuk metadata
+- Publisher & Package capabilities
+- Mint, burn, dan transfer NFT
+
+---
+
+## 📋 Prerequisites
+
+Pastikan sudah menyelesaikan **INSTALLATION.md** di root folder:
+- ✅ Sui CLI terinstall
+- ✅ Wallet setup & punya testnet SUI
+
+---
+
+# Smart Contract NFT
+
+## Step 1: Setup Project Structure
+
+```bash
+# Buat folder project
+mkdir -p nft
+cd nft
+```
+
+## Step 2: Initialize Sui Move Package
+
+```bash
+# Initialize Move package
+sui move new nft
+cd nft
+```
+
+## Step 3: Create Move.toml
+
+**File:** `Move.toml`
+
+```toml
+[package]
+name = "nft"
+edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
+
+[addresses]
+nft_package = "0x0"
+
+[dev-addresses]
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+
+[dev-dependencies]
+```
+
+## Step 4: Create NFT Contract
+
+**File:** `sources/nft.move`
+
+```move
+module nft_package::nft_module {
+    use sui::display;
+    use sui::package;
+    use sui::url::{Self, Url};
+    use std::string::{Self, String};
+
+    public struct NFT_MODULE has drop { }
+
+    /// ==================================
+    /// Structs
+    /// ==================================
+    public struct NFT has key, store {
+        id: UID,
+        name: String,
+        description: String,
+        image_url: Url,
+        creator: address
+    }
+
+    fun init(witness: NFT_MODULE, ctx: &mut TxContext) {
+        let keys = vector[
+            string::utf8(b"name"),
+            string::utf8(b"description"),
+            string::utf8(b"image_url"),
+            string::utf8(b"creator")
+        ];
+
+        let values = vector[
+            string::utf8(b"{name}"),
+            string::utf8(b"{description}"),
+            string::utf8(b"{image_url}"),
+            string::utf8(b"{creator}")
+        ];
+
+        let publisher = package::claim(witness, ctx);
+        let mut display = display::new_with_fields<NFT>(&publisher, keys, values, ctx);
+        display::update_version(&mut display);
+
+        transfer::public_transfer(display, tx_context::sender(ctx));
+        transfer::public_transfer(publisher, tx_context::sender(ctx));
+    }
+
+    /// ==================================
+    /// Transaction functions
+    /// ==================================
+
+    /// Mint a new NFT owned by the transaction sender
+    #[allow(lint(self_transfer))]
+    public fun mint(
+        name: String,
+        description: String,
+        url: String,
+        ctx: &mut TxContext
+    ) {
+        let nft = NFT {
+            id: object::new(ctx),
+            name,
+            description,
+            image_url: url::new_unsafe_from_bytes(url.into_bytes()),
+            creator: tx_context::sender(ctx)
+        };
+
+        transfer::public_transfer(nft, tx_context::sender(ctx));
+    }
+
+    /// Burn an existing NFT owned by the transaction sender
+    public fun burn(
+        nft: NFT
+    ) {
+        let NFT { id, name: _, description: _, image_url: _, creator: _ } = nft;
+
+        object::delete(id);
+    }
+
+    /// ==================================
+    /// View functions
+    /// ==================================
+    public fun get_nft_name(nft: &NFT): String {
+        nft.name
+    }
+
+    /// ==================================
+    /// Testing
+    /// ==================================
+    #[test_only]
+    public fun init_for_testing(ctx: &mut TxContext) {
+        init(NFT_MODULE {}, ctx);
+    }
+
+}
+```
+
+---
+
+## 📚 Penjelasan Code
+
+### Struct NFT
 
 ```move
 public struct NFT has key, store {
@@ -38,152 +179,132 @@ public struct NFT has key, store {
 }
 ```
 
-**Penjelasan Field:**
-- `id`: Unique identifier (setiap NFT beda!)
-- `name`: Nama NFT (misal: "Cosmic Cat #1")
+**Fields:**
+- `id`: Unique identifier (setiap NFT berbeda)
+- `name`: Nama NFT 
 - `description`: Deskripsi NFT
-- `image_url`: URL gambar NFT
-- `creator`: Address yang mint NFT (immutable!)
+- `image_url`: URL gambar NFT (bisa IPFS/HTTP)
+- `creator`: Address pembuat NFT 
 
-### Display Standard
+**Abilities:**
+- `has key`: Bisa disimpan di storage
+- `has store`: Bisa ditransfer antar address
+
+### Init Function - Display Standard
 
 ```move
-fun init(witness: NFT_MODULE, ctx: &mut TxContext) {
-    let keys = vector[
-        string::utf8(b"name"),
-        string::utf8(b"description"),
-        string::utf8(b"image_url"),
-        string::utf8(b"creator")
-    ];
-
-    let values = vector[
-        string::utf8(b"{name}"),
-        string::utf8(b"{description}"),
-        string::utf8(b"{image_url}"),
-        string::utf8(b"{creator}")
-    ];
-
-    let publisher = package::claim(witness, ctx);
-    let mut display = display::new_with_fields<NFT>(&publisher, keys, values, ctx);
-    display::update_version(&mut display);
-
-    transfer::public_transfer(display, tx_context::sender(ctx));
-    transfer::public_transfer(publisher, tx_context::sender(ctx));
-}
+fun init(witness: NFT_MODULE, ctx: &mut TxContext)
 ```
 
-**Kegunaan Display:**
-- Wallet & Explorer bisa render NFT dengan benar
-- Standardisasi metadata (seperti ERC-721 di Ethereum)
-- Template `{name}` akan diganti dengan actual value
+**Penjelasan:**
+- **Display Standard**: Metadata untuk wallet/explorer
+- **Template system**: `{name}` akan diganti dengan actual value
+- **Publisher**: Capability untuk manage package
+- **Transfer**: Display & Publisher di-transfer ke deployer
 
-### Fungsi Utama
+### Mint Function
 
-#### 1. **Mint NFT**
 ```move
-public fun mint(
-    name: String,
-    description: String,
-    url: String,
-    ctx: &mut TxContext
-)
+public fun mint(name: String, description: String, url: String, ctx: &mut TxContext)
 ```
-- Membuat NFT baru
-- Creator = transaction sender
+
+- Buat NFT baru dengan data yang diberikan
+- `creator`: Otomatis set ke `tx_context::sender(ctx)`
 - Transfer langsung ke minter
-- ⚠️ `#[allow(lint(self_transfer))]` - explicitly allow self transfer
+- `#[allow(lint(self_transfer))]`: Explicitly allow self transfer
 
-#### 2. **Burn NFT**
+### Burn Function
+
 ```move
 public fun burn(nft: NFT)
 ```
-- Menghapus NFT dari blockchain
-- Destructure semua fields
-- Delete object ID
 
-#### 3. **Get NFT Name (View Function)**
-```move
-public fun get_nft_name(nft: &NFT): String
-```
-- Read-only function
-- Tidak modify state
-- Tidak consume gas (bisa dipanggil off-chain)
+- Destructure semua fields NFT
+- Delete object ID
+- NFT hilang permanent dari blockchain
 
 ---
 
-## 🚀 Step-by-Step Tutorial
-
-### **Step 1: Build Contract**
+## Step 5: Build Contract
 
 ```bash
-cd nft
-
-# Build
+# Build contract
 sui move build
-
-# Run tests
-sui move test
 ```
 
-### **Step 2: Deploy to Testnet**
-
-```bash
-sui client publish --gas-budget 100000000
+**Expected Output:**
+```
+INCLUDING DEPENDENCY Sui
+INCLUDING DEPENDENCY MoveStdlib
+BUILDING nft
+Build Successful
 ```
 
-**📝 Simpan dari output:**
-- ✅ **Package ID**
-- ✅ **Publisher Object ID**
-- ✅ **Display Object ID**
-- ✅ **Transaction Digest**
-
-### **Step 3: Mint NFT Pertama**
+## Step 6: Deploy to Testnet
 
 ```bash
-# Mint NFT (ganti PACKAGE_ID)
+# Deploy/Publish contract
+sui client publish
+```
+
+**⚠️ PENTING - Simpan Output Ini:**
+
+Dari output, catat:
+1. **Package ID**: `0xabcd1234...`
+2. **Publisher Object ID**: `0x...`
+3. **Display Object ID**: `0x...`
+4. **Transaction Digest**: `ABC123...`
+
+**Copy Package ID ke notepad/notes!**
+
+---
+
+## 🧪 Step 7: Test via CLI
+
+### 7.1 Mint NFT Pertama
+
+```bash
+# Mint NFT dengan data
 sui client call \
   --package <PACKAGE_ID> \
   --module nft_module \
   --function mint \
   --args \
-    "Cosmic Cat #1" \
-    "A mystical cat wandering through the cosmos" \
-    "https://example.com/cosmic-cat.png" \
-  --gas-budget 10000000
+    "Name of the NFT" \
+    "Description of the NFT" \
+    "https://picsum.photos/400/400"
 ```
 
-**💡 Tips:** Gunakan URL gambar yang valid! Bisa pakai:
-- IPFS: `ipfs://...`
-- Public CDN: `https://...`
-- Arweave: `https://arweave.net/...`
+**💡 Tips URL Gambar (Free):**
+- Picsum (random): `https://picsum.photos/400/400`
+- Placeholder: `https://via.placeholder.com/400`
+- Robohash: `https://robohash.org/sui-nft.png`
+- Upload ke Pinata/Imgur lalu copy link
 
-**📝 Simpan NFT Object ID dari output**
+**Simpan NFT Object ID dari output!**
 
-### **Step 4: View NFT**
+### 7.2 View NFT Details
 
 ```bash
 # Lihat details NFT
 sui client object <NFT_OBJECT_ID>
 
-# Lihat semua NFT yang Anda miliki
-sui client objects
+# Atau dengan JSON format untuk better readability
+sui client object <NFT_OBJECT_ID> --json | jq '.content.fields'
 ```
 
-### **Step 5: Explore di Sui Explorer**
+**Expected Output (fields):**
+```json
+{
+  "creator": "0x...",
+  "description": "Description of the NFT",
+  "id": { "id": "0x..." },
+  "image_url": "https://picsum.photos/400/400",
+  "name": "Name of the NFT"
+}
+```
 
-1. Buka https://suiexplorer.com/?network=testnet
-2. Paste NFT Object ID atau Transaction Digest
-3. Lihat metadata NFT Anda!
-
-### **Step 6: View di Wallet**
-
-1. Buka Sui Wallet extension
-2. Tab "Collectibles"
-3. NFT Anda akan muncul dengan gambar & metadata!
-
----
-
-## 🎨 Mint NFT Collection
+### 7.3 Mint NFT Collection
 
 Mari buat collection 3 NFT:
 
@@ -196,8 +317,7 @@ sui client call \
   --args \
     "Cosmic Cat #1" \
     "The first cosmic cat" \
-    "https://example.com/cat1.png" \
-  --gas-budget 10000000
+    "https://picsum.photos/400/400?random=1"
 
 # NFT #2
 sui client call \
@@ -207,8 +327,7 @@ sui client call \
   --args \
     "Cosmic Cat #2" \
     "The second cosmic cat" \
-    "https://example.com/cat2.png" \
-  --gas-budget 10000000
+    "https://picsum.photos/400/400?random=2"
 
 # NFT #3
 sui client call \
@@ -218,128 +337,138 @@ sui client call \
   --args \
     "Cosmic Cat #3" \
     "The third cosmic cat" \
-    "https://example.com/cat3.png" \
-  --gas-budget 10000000
+    "https://picsum.photos/400/400?random=3"
 ```
 
-### **Transfer NFT ke Teman**
+### 7.4 List All Your NFTs
 
 ```bash
-# Transfer NFT (ganti RECIPIENT_ADDRESS)
-sui client transfer \
-  --object-id <NFT_OBJECT_ID> \
-  --to <RECIPIENT_ADDRESS> \
-  --gas-budget 10000000
+# Lihat semua NFT yang Anda miliki
+sui client objects
+
+# Atau filter by type
+sui client objects | grep "<PACKAGE_ID>::nft_module::NFT"
 ```
 
-### **Burn NFT**
+### 7.5 Burn NFT
 
 ```bash
-# Burn/Destroy NFT
+# Burn/Destroy NFT (permanent!)
 sui client call \
   --package <PACKAGE_ID> \
   --module nft_module \
   --function burn \
-  --args <NFT_OBJECT_ID> \
-  --gas-budget 10000000
+  --args <NFT_OBJECT_ID>
 ```
 
 ⚠️ **Warning:** Burning permanent! NFT tidak bisa di-recover.
 
+### 7.6 Transfer NFT
+
+```bash
+# Transfer NFT ke address lain
+sui client transfer \
+  --object-id <NFT_OBJECT_ID> \
+  --to <RECIPIENT_ADDRESS>
+```
+
+**Contoh recipient address:** Second wallet / teman di sebelah!
+
+### 7.7 View di Explorer
+
+1. Buka https://suiscan.xyz/testnet
+2. Paste **NFT Object ID**
+3. Lihat:
+   - NFT metadata (name, description, image)
+   - Creator address
+   - Transfer history
+   - Current owner
+
 ---
 
-## 🔧 Troubleshooting
+## ✅ NFT Contract Checklist
+
+- [x] Build successful
+- [x] Deploy successful & dapat Package ID
+- [x] Mint NFT via CLI
+- [x] View NFT details
+- [x] Mint NFT collection (2+ NFTs)
+- [x] Transfer NFT ke address lain
+- [x] Burn NFT
+- [x] NFT terlihat di Explorer
+
+---
+
+# 🔧 Troubleshooting
 
 ### Error: "Invalid URL"
-- Pastikan URL valid (harus dimulai dengan `http://` atau `https://`)
-- Atau gunakan `ipfs://` untuk IPFS
+- **Solusi**: Pastikan URL dimulai dengan `http://` atau `https://`
+- Test URL di browser dulu sebelum mint
 
 ### NFT tidak muncul di wallet
-- Tunggu beberapa saat (indexing)
-- Refresh wallet
-- Pastikan Display object sudah di-setup dengan benar
+- **Solusi**:
+  - Tunggu 10-20 detik (indexing delay)
+  - Refresh wallet
+  - Pastikan Display object sudah di-setup (cek saat deploy)
+
+### Error: "Package not found"
+- **Solusi**: Verify Package ID benar
+- Copy ulang dari terminal saat deploy
 
 ### Error saat transfer
-- Pastikan Anda adalah owner NFT
-- Verify recipient address valid
+- **Solusi**:
+  - Pastikan Anda adalah owner NFT
+  - Verify recipient address valid (harus 0x... format)
 
 ---
 
-## 💡 Challenge (Opsional)
+# 💡 Concepts Learned
 
-### Level 1: Basic Enhancements
-1. **Add `update_description`** - Update description NFT (only creator)
-2. **Add getter functions** - `get_description()`, `get_image_url()`, `get_creator()`
-3. **Add edition number** - Field `edition: u64`
+## Sui Move Concepts
+- ✅ **Non-Fungible Token** - Setiap NFT unik
+- ✅ **Display Standard** - Metadata untuk wallet/explorer
+- ✅ **Publisher Capability** - Package management
+- ✅ **One-Time Witness (OTW)** - Init function pattern
+- ✅ **Creator tracking** - Immutable proof of minter
+
+---
+
+# 🎨 Challenge (Opsional)
+
+### Level 1: Basic
+1. Mint NFT dengan gambar Anda sendiri (upload ke Imgur)
+2. Transfer NFT ke teman
+3. View NFT di https://suiscan.xyz
 
 ### Level 2: Intermediate
-4. **Royalty system** - Creator dapat % dari setiap transfer
-5. **Attributes** - Tambah `VecMap<String, String>` untuk properties
-6. **Burn event** - Emit event saat NFT di-burn
+4. Tambah getter function: `get_description()`, `get_creator()`
+5. Tambah field `edition: u64` untuk numbering
+6. Mint 10 NFTs dengan loop di CLI
 
 ### Level 3: Advanced
-7. **Collection system** - Group NFTs dalam collections
-8. **Minting limit** - Max supply per collection
-9. **Allowlist** - Only certain addresses bisa mint
+7. Tambah `update_description()` - hanya creator yang bisa
+8. Tambah royalty system untuk transfer
+9. Buat collection system dengan Collection struct
 
 ---
 
-## 📚 Konsep Penting
-
-| Konsep | Penjelasan |
-|--------|------------|
-| **Non-Fungible** | Setiap NFT unik, tidak interchangeable |
-| **Display Standard** | Metadata untuk wallet/explorer |
-| **Publisher** | Capability untuk manage package |
-| **Creator Field** | Immutable proof of original minter |
-| **Object Ownership** | NFT dimiliki oleh address, bisa ditransfer |
-
----
-
-## 🎯 Perbedaan NFT vs Token
-
-| Aspek | NFT | Token (Coin) |
-|-------|-----|--------------|
-| **Uniqueness** | Setiap NFT unik | Semua token sama (fungible) |
-| **ID** | Setiap NFT punya UID | Token tidak punya individual ID |
-| **Transfer** | Transfer object | Transfer value/amount |
-| **Use Case** | Art, collectibles, tickets | Currency, governance, utility |
-| **Display** | Rich metadata (image, etc) | Symbol & decimals |
-
----
-
-## 🎓 Real-World Use Cases
+# 🎯 Real-World Use Cases
 
 1. **Digital Art** - Seni digital dengan proof of ownership
 2. **Gaming Items** - Swords, armor, skins yang tradeable
 3. **Event Tickets** - Tiket konser dengan anti-scalping
 4. **Membership Cards** - VIP access, community badges
 5. **Certificates** - Diploma, achievement badges
-6. **Real Estate** - Digital representation of property
-7. **Domain Names** - Sui Name Service (SNS)
+6. **Domain Names** - Sui Name Service (SNS)
 
 ---
 
-## 🎨 Free Image Resources untuk Testing
+# 📚 Resources
 
-- **Picsum**: `https://picsum.photos/400/400`
-- **Placeholder**: `https://via.placeholder.com/400`
-- **Robohash**: `https://robohash.org/yourtext.png`
-- **Upload ke Imgur/ImgBB** lalu copy link
-
----
-
-## 📞 Resources
-
-- [Sui NFT Standard](https://docs.sui.io/standards/display)
-- [Sui Object Display](https://docs.sui.io/standards/display)
-- [Sui Explorer](https://suiexplorer.com/?network=testnet)
-- [IPFS Upload](https://www.pinata.cloud/)
+- **Sui Object Display**: https://docs.sui.io/standards/display
+- **Explorer**: https://suiscan.xyz/testnet
+- **Free Images**: https://picsum.photos, https://placeholder.com
 
 ---
 
-## 🚀 Next Steps
-
-Setelah paham NFT, lanjut ke:
-- **Token Module** - Fungible token dengan supply management
-- **Advanced NFT** - Collections, royalties, marketplaces
+**Selamat! Anda sudah berhasil membuat NFT di Sui! 🎉**
