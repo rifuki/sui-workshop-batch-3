@@ -1,23 +1,27 @@
 module 0x0::counter_module {
     use sui::event;
 
-    const E_COUNTER_VALUE_INVALID: u64 = 888; 
+    const E_COUNTER_VALUE_INVALID: u64 = 101; 
 
+    /// ==============================
+    /// Structs
+    /// ==============================
     public struct CounterObject has key, store { 
         id: sui::object::UID,
         value: u64
     }
 
+    /// ==============================
+    /// Events
+    /// ==============================
     public struct CounterCreateEvent has copy, drop {
         counter_object: ID
     }
-
     public struct CounterChangedEvent has copy, drop {
         new_value: u64
     }
 
-    #[allow(lint(self_transfer))]
-    public fun create(ctx: &mut TxContext) {
+    public fun create(ctx: &mut TxContext): CounterObject {
         let counter_object = CounterObject {
             id: object::new(ctx),
             value: 0
@@ -27,7 +31,7 @@ module 0x0::counter_module {
             counter_object: object::uid_to_inner(&counter_object.id)
         });
 
-        transfer::public_transfer(counter_object, tx_context::sender(ctx));
+        counter_object
     }
 
     public fun increment(counter: &mut CounterObject) {
@@ -48,6 +52,8 @@ module 0x0::counter_module {
         });
     }
 
-    // === Getters ===
+    /// ==============================
+    /// Getters
+    /// ==============================
     public fun get_counter_value(counter: &CounterObject): u64 { counter.value }
 }
