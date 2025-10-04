@@ -6,7 +6,6 @@ Token module adalah contoh implementasi **Fungible Token** (Coin) di Sui blockch
 - ✅ **Coin Registry** - Metadata otomatis untuk wallet & explorer
 - ✅ **TreasuryCap** - Kontrol mint & burn token
 - ✅ **Decimals Support** - Presisi hingga 6 desimal
-- ✅ **Mergeable/Splittable** - Coin bisa digabung/dipecah
 
 Peserta diharapkan **membangun project** dengan code dari README ini. 😃
 
@@ -14,11 +13,9 @@ Peserta diharapkan **membangun project** dengan code dari README ini. 😃
 
 ## 🎯 Learning Objectives
 
-- Memahami konsep Fungible Token (Coin) di Sui
 - Implementasi Coin Registry untuk metadata otomatis
 - TreasuryCap untuk kontrol supply token
 - Mint, burn, dan transfer token
-- Merge & split operations pada coin
 
 ---
 
@@ -31,14 +28,6 @@ Pastikan sudah menyelesaikan **INSTALLATION.md** di root folder:
 ---
 
 # Smart Contract Token
-
-## Step 1: Setup Project Structure
-
-```bash
-# Buat folder project
-mkdir -p token
-cd token
-```
 
 ## Step 2: Initialize Sui Move Package
 
@@ -172,11 +161,6 @@ public fun mint(
 - `amount`: Jumlah token (dalam smallest unit, dengan decimals)
 - `mint_and_transfer`: Langsung mint & transfer ke sender
 
-**Contoh amount dengan 6 decimals:**
-- `1_000_000` = 1 token
-- `500_000` = 0.5 token
-- `1_000` = 0.001 token
-
 ### Burn Function
 
 ```move
@@ -193,7 +177,181 @@ public fun burn(
 
 ---
 
-## Step 5: Build Contract
+## Step 4: Create Unit Tests
+
+**File:** `tests/token_tests.move`
+
+```move
+#[test_only]
+module token_package::token_module_test {
+    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::test_scenario;
+    use token_package::token_module;
+
+    const E_MINT_AMOUNT_NOT_VALID: u64 = 9001;
+
+    #[test]
+    fun mint() {
+        let user = @0xCAFE;
+
+        let mut scenario = test_scenario::begin(user);
+        {
+            token_module::init_for_testing(test_scenario::ctx(&mut scenario));
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let mut treasury_cap_object = test_scenario::take_from_sender<TreasuryCap<token_module::TOKEN_MODULE>>(&scenario);
+
+            token_module::mint(&mut treasury_cap_object, 100, test_scenario::ctx(&mut scenario));
+
+            test_scenario::return_to_sender(&scenario, treasury_cap_object);
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let coin = test_scenario::take_from_sender<Coin<token_module::TOKEN_MODULE>>(&scenario);
+            assert!(coin::value(&coin) == 100, E_MINT_AMOUNT_NOT_VALID);
+
+            test_scenario::return_to_sender(&scenario, coin);
+        };
+
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun burn() {
+        let user = @0xCAFE;
+
+        let mut scenario = test_scenario::begin(user);
+        {
+            token_module::init_for_testing(test_scenario::ctx(&mut scenario));
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let mut treasury_cap_object = test_scenario::take_from_sender<TreasuryCap<token_module::TOKEN_MODULE>>(&scenario);
+
+            token_module::mint(&mut treasury_cap_object, 100, test_scenario::ctx(&mut scenario));
+            token_module::mint(&mut treasury_cap_object, 500, test_scenario::ctx(&mut scenario));
+
+            test_scenario::return_to_sender(&scenario, treasury_cap_object);
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let coin_object1 = test_scenario::take_from_sender<Coin<token_module::TOKEN_MODULE>>(&scenario);
+
+            let coin_object2 = test_scenario::take_from_sender<Coin<token_module::TOKEN_MODULE>>(&scenario);
+            assert!(coin::value(&coin_object1) == 500, E_MINT_AMOUNT_NOT_VALID);
+            assert!(coin::value(&coin_object2) == 100, E_MINT_AMOUNT_NOT_VALID);
+
+            test_scenario::return_to_sender(&scenario, coin_object1);
+            test_scenario::return_to_sender(&scenario, coin_object2);
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let mut treasury_cap_object = test_scenario::take_from_sender<TreasuryCap<token_module::TOKEN_MODULE>>(&scenario);
+            let coin_object1 = test_scenario::take_from_sender<Coin<token_module::TOKEN_MODULE>>(&scenario);
+
+            token_module::burn(&mut treasury_cap_object, coin_object1);
+
+            test_scenario::return_to_sender(&scenario, treasury_cap_object);
+        };
+
+        test_scenario::next_tx(&mut scenario, user);
+        {
+            let coin_object2 = test_scenario::take_from_sender<Coin<token_module::TOKEN_MODULE>>(&scenario);
+            assert!(coin::value(&coin_object2) == 500, E_MINT_AMOUNT_NOT_VALID);
+
+            test_scenario::return_to_sender(&scenario, coin_object2);
+        };
+        test_scenario::end(scenario);
+    }
+
+}
+```
+
+---
+
+## 📚 Penjelasan Unit Tests
+
+### Test Structure
+
+```move
+#[test_only]
+module token_package::token_module_test
+```
+
+**Penjelasan:**
+- `#[test_only]`: Module ini hanya di-compile saat testing
+- Import `Coin` dan `TreasuryCap` dari `sui::coin`
+
+### Test 1: mint()
+
+**Flow:**
+1. Setup user `@0xCAFE`
+2. Init module - mendapat TreasuryCap
+3. **Take TreasuryCap** dari sender (mutable reference)
+4. Mint 100 tokens menggunakan TreasuryCap
+5. Return TreasuryCap ke sender
+6. **Take Coin** dari sender
+7. Assert coin value = 100
+8. Return Coin ke sender
+
+**Key Concepts:**
+- `take_from_sender<TreasuryCap<...>>`: Take treasury capability
+- `take_from_sender<Coin<...>>`: Take coin object
+- `coin::value(&coin)`: Check coin balance
+- Mutable borrow (`&mut`) untuk TreasuryCap
+
+### Test 2: burn()
+
+**Flow:**
+1. Setup & init module
+2. Mint **2 coins**: 100 dan 500 tokens
+3. **Take both coins** - verify values (500 dan 100)
+4. Return both coins
+5. **Burn coin pertama** (500 tokens)
+6. Verify coin kedua masih ada (100 tokens)
+
+**Key Concepts:**
+- Multiple `take_from_sender` untuk ambil multiple coins
+- Burn tidak return coin object (consumed)
+- Verify burn berhasil dengan checking remaining coin
+
+**💡 Important:**
+- Order coins di `take_from_sender`: Last minted = first taken (LIFO)
+- coin_object1 = 500 (last minted)
+- coin_object2 = 100 (first minted)
+
+---
+
+## Step 5: Run Tests
+
+```bash
+# Run all tests
+sui move test
+
+# Run specific test
+sui move test mint
+
+# Run with verbose output
+sui move test --verbose
+```
+
+**Expected Output:**
+```
+Running Move unit tests
+[ PASS    ] token_package::token_module_test::mint
+[ PASS    ] token_package::token_module_test::burn
+Test result: OK. Total tests: 2; passed: 2; failed: 0
+```
+
+---
+
+## Step 6: Build Contract
 
 ```bash
 # Build contract
@@ -208,7 +366,7 @@ BUILDING token
 Build Successful
 ```
 
-## Step 6: Deploy to Testnet
+## Step 7: Deploy to Testnet
 
 ```bash
 # Deploy/Publish contract
@@ -219,25 +377,24 @@ sui client publish
 
 Dari output, catat:
 1. **Package ID**: `0xabcd1234...`
-2. **TreasuryCap Object ID**: `0x...` (type: TreasuryCap<TOKEN_MODULE>)
-3. **CoinMetadataCap Object ID**: `0x...` (type: CoinMetadataCap<TOKEN_MODULE>)
-4. **CoinMetadata Object ID**: `0x...` (shared object - untuk metadata)
-5. **Transaction Digest**: `ABC123...`
+2. **TreasuryCap Object ID**: `0x...` (type: `TreasuryCap<TOKEN_MODULE>`)
+3. **MetadataCap Object ID**: `0x...` (type: `coin_registry::MetadataCap<TOKEN_MODULE>`)
+4. **Currency Object ID**: `0x...` (shared object - metadata token)
 
 **Copy Package ID & TreasuryCap Object ID ke notepad!**
 
 ---
 
-## 🧪 Step 7: Test via CLI
+## 🧪 Step 8: Test via CLI
 
-### 7.1 View Token Metadata
+### 8.1 View Token Metadata
 
 ```bash
-# Lihat metadata token (shared object)
-sui client object <COIN_METADATA_OBJECT_ID>
+# Lihat metadata token (Currency shared object)
+sui client object <CURRENCY_OBJECT_ID>
 
 # Atau dengan JSON format
-sui client object <COIN_METADATA_OBJECT_ID> --json | jq '.content.fields'
+sui client object <CURRENCY_OBJECT_ID> --json | jq '.content.fields'
 ```
 
 **Expected Output:**
@@ -245,51 +402,52 @@ sui client object <COIN_METADATA_OBJECT_ID> --json | jq '.content.fields'
 {
   "decimals": 6,
   "description": "This is example token creation for demo sui workshop batch 3",
-  "icon_url": "https://strapi-dev.scand.app/uploads/sui_c07df05f00.png",
+  "icon_url": "https://...",
   "name": "Sui Workshop Batch 3",
   "symbol": "SWB3"
 }
 ```
 
-### 7.2 Mint Tokens
+### 8.2 Mint Tokens
+
+Mari mint beberapa kali untuk testing:
 
 ```bash
-# Mint 1,000,000 tokens (= 1,000,000.000000 dengan 6 decimals)
+# Mint pertama - 100 tokens
 sui client call \
   --package <PACKAGE_ID> \
   --module token_module \
   --function mint \
-  --args <TREASURY_CAP_OBJECT_ID> 1000000000000
+  --args <TREASURY_CAP_OBJECT_ID> 100
 
-# Mint 100 tokens (= 100.000000)
+# Mint kedua - 200 tokens
 sui client call \
   --package <PACKAGE_ID> \
   --module token_module \
   --function mint \
-  --args <TREASURY_CAP_OBJECT_ID> 100000000
+  --args <TREASURY_CAP_OBJECT_ID> 200
+
+# Mint ketiga - 300 tokens
+sui client call \
+  --package <PACKAGE_ID> \
+  --module token_module \
+  --function mint \
+  --args <TREASURY_CAP_OBJECT_ID> 300
 ```
 
-**💡 Kalkulasi Amount:**
-- Rumus: `amount = jumlah_token × 10^decimals`
-- Decimals = 6, jadi `10^6 = 1,000,000`
-- Untuk mint 100 token: `100 × 1,000,000 = 100,000,000`
+**Simpan Coin Object IDs dari setiap output!**
 
-**Simpan Coin Object ID dari output!**
-
-### 7.3 Check Your Token Balance
+### 8.3 Check Your Token Balance
 
 ```bash
 # Lihat semua coins di wallet
-sui client gas
+sui client balance
 
-# Atau lihat semua objects
+# Lihat semua objects (termasuk coins)
 sui client objects
-
-# Filter untuk token kita
-sui client objects | grep "<PACKAGE_ID>::token_module::TOKEN_MODULE"
 ```
 
-### 7.4 View Coin Details
+### 8.4 View Coin Details
 
 ```bash
 # Lihat details coin object
@@ -302,60 +460,17 @@ sui client object <COIN_OBJECT_ID> --json | jq '.content.fields'
 **Expected Output:**
 ```json
 {
-  "balance": "100000000",
+  "balance": "700",
   "id": { "id": "0x..." }
 }
 ```
 
-Balance `100000000` dengan 6 decimals = 100 tokens
 
-### 7.5 Transfer Tokens
-
-```bash
-# Transfer coin ke address lain
-sui client transfer \
-  --object-id <COIN_OBJECT_ID> \
-  --to <RECIPIENT_ADDRESS>
-```
-
-**Note:** Ini transfer seluruh coin object. Jika ingin transfer partial amount, gunakan split dulu (Step 7.6).
-
-### 7.6 Split Coins
-
-```bash
-# Split coin - ambil 50 tokens dari coin 100 tokens
-sui client call \
-  --package 0x2 \
-  --module coin \
-  --function split \
-  --type-args <PACKAGE_ID>::token_module::TOKEN_MODULE \
-  --args <COIN_OBJECT_ID> 50000000
-
-# Sekarang Anda punya 2 coin objects:
-# - Original coin: 50 tokens
-# - New coin: 50 tokens
-```
-
-### 7.7 Merge Coins
-
-```bash
-# Gabungkan 2 coins menjadi 1
-sui client call \
-  --package 0x2 \
-  --module coin \
-  --function join \
-  --type-args <PACKAGE_ID>::token_module::TOKEN_MODULE \
-  --args <COIN_OBJECT_ID_1> <COIN_OBJECT_ID_2>
-
-# Coin 2 akan digabung ke Coin 1
-# Coin 1 balance akan bertambah
-# Coin 2 akan hilang (deleted)
-```
-
-### 7.8 Burn Tokens
+### 8.5 Burn Tokens
 
 ```bash
 # Burn/Destroy token (permanent!)
+# Burn coin pertama (100 tokens)
 sui client call \
   --package <PACKAGE_ID> \
   --module token_module \
@@ -365,7 +480,48 @@ sui client call \
 
 ⚠️ **Warning:** Burning permanent! Token tidak bisa di-recover & total supply berkurang.
 
-### 7.9 View di Explorer
+**Verify:** Setelah burn, cek balance - seharusnya coin 100 tokens sudah hilang.
+
+### 8.6 Split Coins
+
+```bash
+# Split coin 300 tokens - ambil 150 tokens
+sui client split-coin \
+  --coin-id <COIN_300_TOKENS_ID> \
+  --amounts 150
+
+# Sekarang Anda punya:
+# - Original coin: 150 tokens (sisa)
+# - New coin: 150 tokens (hasil split)
+```
+
+### 8.7 Merge Coins
+
+```bash
+# Gabungkan coin 200 tokens + coin 150 tokens (hasil split)
+sui client merge-coin \
+  --primary-coin <COIN_200_TOKENS_ID> \
+  --coin-to-merge <COIN_150_TOKENS_ID>
+
+# Hasilnya:
+# - Primary coin: 350 tokens (200 + 150)
+# - Coin yang di-merge: hilang (deleted)
+```
+
+### 8.8 Transfer Tokens
+
+```bash
+# Transfer coin ke address lain
+sui client transfer \
+  --object-id <COIN_OBJECT_ID> \
+  --to <RECIPIENT_ADDRESS>
+```
+
+**Contoh recipient address:** Second wallet / teman di sebelah!
+
+**Note:** Transfer akan mengirim seluruh coin object.
+
+### 8.9 View di Explorer
 
 1. Buka https://suiscan.xyz/testnet
 2. Paste **Coin Object ID** atau **Package ID**
@@ -445,23 +601,6 @@ sui client call \
 | **Split** | Pecah 1 coin jadi 2 | Coin ownership |
 | **Merge** | Gabung 2 coin jadi 1 | Ownership kedua coins |
 
-## Decimals Explained
-
-```
-Decimals = 6
-User Input: 100 tokens
-Actual Amount: 100,000,000 (100 × 10^6)
-
-Balance di Chain: 100,000,000
-Tampilan di Wallet: 100.000000 SWB3
-```
-
-**Common Decimals:**
-- 6 decimals: SUI, USDT, USDC (lebih hemat gas)
-- 9 decimals: Common untuk many chains
-- 18 decimals: Ethereum standard (maksimal presisi)
-
----
 
 # 🎨 Challenge (Opsional)
 
@@ -521,5 +660,3 @@ Setelah mempelajari NFT dan Token, berikut perbedaan praktisnya:
 ---
 
 **Selamat! Anda sudah berhasil membuat Token di Sui! 🎉**
-
-**Next:** Ready untuk Day 2 - Advanced Features! 🚀

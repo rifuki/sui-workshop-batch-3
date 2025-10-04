@@ -354,9 +354,9 @@ cargo clean
 
 # Build ulang
 cargo install --locked --git https://github.com/MystenLabs/sui.git --branch testnet sui
-
-jika lambat, ganti metode pakai suiup atau langsung pakai yang pre-compiled dari github sui. atau jika masih ngeyel ingin compile sendiri pastikan koneksi internet cepat & stabil atau ganti device dengan spesifikasi lebih tinggi 😆 
 ```
+
+jika lambat, ganti metode pakai suiup atau langsung pakai yang pre-compiled dari github sui. atau jika tetap ingin compile sendiri pastikan koneksi internet cepat & stabil atau ganti device dengan spesifikasi lebih tinggi 😆 
 
 ---
 
