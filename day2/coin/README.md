@@ -35,7 +35,7 @@ Pastikan sudah menyelesaikan **INSTALLATION.md** di root folder:
 
 ```bash
 # Initialize Move package
-sui move new coin
+sui move new coin_contract
 cd coin
 ```
 

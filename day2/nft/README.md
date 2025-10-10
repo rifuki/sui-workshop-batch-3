@@ -34,7 +34,7 @@ Pastikan sudah menyelesaikan **INSTALLATION.md** di root folder:
 
 ```bash
 # Initialize Move package
-sui move new nft
+sui move new nft_contract
 cd nft
 ```
 
