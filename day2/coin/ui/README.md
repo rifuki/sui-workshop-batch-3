@@ -61,14 +61,14 @@ Contoh output:
 ╭─────────────────────────────────────────────────────╮
 │ Published Objects                                   │
 ├─────────────────────────────────────────────────────┤
-│ PackageID: 0xabcd1234...                           │  ← Copy ini
+│ PackageID: 0xabcd1234...                            │  ← Copy ini
 ╰─────────────────────────────────────────────────────╯
 
 ╭─────────────────────────────────────────────────────╮
 │ Created Objects                                     │
 ├─────────────────────────────────────────────────────┤
-│ ObjectID: 0xefgh5678...                            │  ← Copy ini (TreasuryCap)
-│ ObjectType: ...::TreasuryCap<...::COIN_MODULE>    │
+│ ObjectID: 0xefgh5678...                             │  ← Copy ini (TreasuryCap)
+│ ObjectType: ...::TreasuryCap<...::COIN_MODULE>      │
 ╰─────────────────────────────────────────────────────╯
 ```
 

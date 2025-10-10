@@ -1,8 +1,8 @@
-# Coin (Fungible Coin/Token) - Sui Workshop Batch 3
+# Coin (Fungible Token) - Sui Workshop Batch 3
 
 ## 📖 Overview
 
-Coin module adalah contoh implementasi **Fungible Coin/Token** di Sui blockchain dengan:
+Coin module adalah contoh implementasi **Fungible Token** di Sui blockchain dengan:
 
 - ✅ **CoinMetadata** - Metadata otomatis untuk wallet & explorer
 - ✅ **TreasuryCap** - Kontrol mint & burn coin
@@ -36,10 +36,10 @@ Pastikan sudah menyelesaikan **INSTALLATION.md** di root folder:
 ```bash
 # Initialize Move package
 sui move new coin_contract
-cd coin
+cd coin_contract
 ```
 
-## Step 2: Create Move.toml
+## Step 2: Set Move.toml
 
 **File:** `Move.toml`
 
@@ -54,7 +54,7 @@ coin_package = "0x0"
 [dev-addresses]
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/devnet" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 
 [dev-dependencies]
 ```
@@ -151,10 +151,8 @@ fun init(otw: COIN_MODULE, ctx: &mut TxContext)
 **💡 Tips:**
 
 - Symbol biasanya 3-5 karakter uppercase
-- Decimals umum: 6 (Sui native), 9 (USDC/USDT), 18 (Ethereum)
+- Decimals umum: 6 (USDC/USDT), 9 (Sui native), 18 (Ethereum)
 - Icon URL harus public & accessible
-- Gunakan `#[allow(deprecated_usage)]` untuk `url::new_unsafe_from_bytes`
-- Bytes string menggunakan prefix `b"..."` bukan `"...".to_string()`
 
 ### Mint Function
 
@@ -169,7 +167,7 @@ public fun mint(
 **Penjelasan:**
 
 - `treasury_cap`: Mutable reference - hanya owner yang bisa mint
-- `amount`: Jumlah coin (dalam smallest unit, dengan decimals)
+- `amount`: Jumlah coin (dalam smallest unit / decimals)
 - `mint_and_transfer`: Langsung mint & transfer ke sender
 
 ### Burn Function
@@ -189,188 +187,7 @@ public fun burn(
 
 ---
 
-## Step 4: Create Unit Tests
-
-**File:** `tests/coin_tests.move`
-
-```move
-#[test_only]
-module coin_package::coin_module_test {
-    use sui::coin::{Self, Coin, TreasuryCap};
-    use sui::test_scenario;
-    use coin_package::coin_module;
-
-    const E_MINT_AMOUNT_NOT_VALID: u64 = 9001;
-
-    #[test]
-    fun mint() {
-        let user = @0xCAFE;
-
-        let mut scenario = test_scenario::begin(user);
-        {
-            coin_module::init_for_testing(test_scenario::ctx(&mut scenario));
-        };
-
-        test_scenario::next_tx(&mut scenario, user);
-        {
-            let mut treasury_cap_object = test_scenario::take_from_sender<TreasuryCap<coin_module::COIN_MODULE>>(&scenario);
-
-            coin_module::mint(&mut treasury_cap_object, 100, test_scenario::ctx(&mut scenario));
-
-            test_scenario::return_to_sender(&scenario, treasury_cap_object);
-        };
-
-        test_scenario::next_tx(&mut scenario, user);
-        {
-            let coin = test_scenario::take_from_sender<Coin<coin_module::COIN_MODULE>>(&scenario);
-            assert!(coin::value(&coin) == 100, E_MINT_AMOUNT_NOT_VALID);
-
-            test_scenario::return_to_sender(&scenario, coin);
-        };
-
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    fun burn() {
-        let user = @0xCAFE;
-
-        let mut scenario = test_scenario::begin(user);
-        {
-            coin_module::init_for_testing(test_scenario::ctx(&mut scenario));
-        };
-
-        test_scenario::next_tx(&mut scenario, user);
-        {
-            let mut treasury_cap_object = test_scenario::take_from_sender<TreasuryCap<coin_module::COIN_MODULE>>(&scenario);
-
-            coin_module::mint(&mut treasury_cap_object, 100, test_scenario::ctx(&mut scenario));
-            coin_module::mint(&mut treasury_cap_object, 500, test_scenario::ctx(&mut scenario));
-
-            test_scenario::return_to_sender(&scenario, treasury_cap_object);
-        };
-
-        test_scenario::next_tx(&mut scenario, user);
-        {
-            let coin_object1 = test_scenario::take_from_sender<Coin<coin_module::COIN_MODULE>>(&scenario);
-
-            let coin_object2 = test_scenario::take_from_sender<Coin<coin_module::COIN_MODULE>>(&scenario);
-            assert!(coin::value(&coin_object1) == 500, E_MINT_AMOUNT_NOT_VALID);
-            assert!(coin::value(&coin_object2) == 100, E_MINT_AMOUNT_NOT_VALID);
-
-            test_scenario::return_to_sender(&scenario, coin_object1);
-            test_scenario::return_to_sender(&scenario, coin_object2);
-        };
-
-        test_scenario::next_tx(&mut scenario, user);
-        {
-            let mut treasury_cap_object = test_scenario::take_from_sender<TreasuryCap<coin_module::COIN_MODULE>>(&scenario);
-            let coin_object1 = test_scenario::take_from_sender<Coin<coin_module::COIN_MODULE>>(&scenario);
-
-            coin_module::burn(&mut treasury_cap_object, coin_object1);
-
-            test_scenario::return_to_sender(&scenario, treasury_cap_object);
-        };
-
-        test_scenario::next_tx(&mut scenario, user);
-        {
-            let coin_object2 = test_scenario::take_from_sender<Coin<coin_module::COIN_MODULE>>(&scenario);
-            assert!(coin::value(&coin_object2) == 500, E_MINT_AMOUNT_NOT_VALID);
-
-            test_scenario::return_to_sender(&scenario, coin_object2);
-        };
-        test_scenario::end(scenario);
-    }
-
-}
-```
-
----
-
-## 📚 Penjelasan Unit Tests
-
-### Test Structure
-
-```move
-#[test_only]
-module coin_package::coin_module_test
-```
-
-**Penjelasan:**
-
-- `#[test_only]`: Module ini hanya di-compile saat testing
-- Import `Coin` dan `TreasuryCap` dari `sui::coin`
-
-### Test 1: mint()
-
-**Flow:**
-
-1. Setup user `@0xCAFE`
-2. Init module - mendapat TreasuryCap
-3. **Take TreasuryCap** dari sender (mutable reference)
-4. Mint 100 coins menggunakan TreasuryCap
-5. Return TreasuryCap ke sender
-6. **Take Coin** dari sender
-7. Assert coin value = 100
-8. Return Coin ke sender
-
-**Key Concepts:**
-
-- `take_from_sender<TreasuryCap<...>>`: Take treasury capability
-- `take_from_sender<Coin<...>>`: Take coin object
-- `coin::value(&coin)`: Check coin balance
-- Mutable borrow (`&mut`) untuk TreasuryCap
-
-### Test 2: burn()
-
-**Flow:**
-
-1. Setup & init module
-2. Mint **2 coins**: 100 dan 500 coins
-3. **Take both coins** - verify values (500 dan 100)
-4. Return both coins
-5. **Burn coin pertama** (500 coins)
-6. Verify coin kedua masih ada (100 coins)
-
-**Key Concepts:**
-
-- Multiple `take_from_sender` untuk ambil multiple coins
-- Burn tidak return coin object (consumed)
-- Verify burn berhasil dengan checking remaining coin
-
-**💡 Important:**
-
-- Order coins di `take_from_sender`: Last minted = first taken (LIFO)
-- coin_object1 = 500 (last minted)
-- coin_object2 = 100 (first minted)
-
----
-
-## Step 5: Run Tests
-
-```bash
-# Run all tests
-sui move test
-
-# Run specific test
-sui move test mint
-
-# Run with verbose output
-sui move test --verbose
-```
-
-**Expected Output:**
-
-```
-Running Move unit tests
-[ PASS    ] coin_package::coin_module_test::mint
-[ PASS    ] coin_package::coin_module_test::burn
-Test result: OK. Total tests: 2; passed: 2; failed: 0
-```
-
----
-
-## Step 6: Build Contract
+## Step 4: Build Contract
 
 ```bash
 # Build contract
@@ -386,7 +203,7 @@ BUILDING coin
 Build Successful
 ```
 
-## Step 7: Deploy to Testnet
+## Step 5: Deploy to Testnet
 
 ```bash
 # Deploy/Publish contract
@@ -394,20 +211,33 @@ sui client publish
 ```
 
 **⚠️ PENTING - Simpan Output Ini:**
+```
+╭─────────────────────────────────────────────────────╮
+│ Published Objects                                   │
+├─────────────────────────────────────────────────────┤
+│ PackageID: 0xabcd1234...                            │  ← Copy ini
+╰─────────────────────────────────────────────────────╯
+
+╭─────────────────────────────────────────────────────╮
+│ Created Objects                                     │
+├─────────────────────────────────────────────────────┤
+│ ObjectID: 0xefgh5678...                             │  ← Copy ini (TreasuryCap)
+│ ObjectType: ...::TreasuryCap<...::COIN_MODULE>      │
+╰─────────────────────────────────────────────────────╯
+```
 
 Dari output, catat:
 
 1. **Package ID**: `0xabcd1234...`
 2. **TreasuryCap Object ID**: `0x...` (type: `TreasuryCap<COIN_MODULE>`)
-3. **CoinMetadata Object ID**: `0x...` (type: `CoinMetadata<COIN_MODULE>` - metadata coin)
 
 **Copy Package ID & TreasuryCap Object ID ke notepad!**
 
 ---
 
-## 🧪 Step 8: Test via CLI
+## 🧪 Step 6: Test via CLI
 
-### 8.1 View Coin Metadata
+### 6.1 View Coin Metadata
 
 ```bash
 # Lihat metadata coin (CoinMetadata object)
@@ -429,36 +259,36 @@ sui client object <METADATA_OBJECT_ID> --json | jq '.content.fields'
 }
 ```
 
-### 8.2 Mint Coins
+### 6.2 Mint Coins
 
 Mari mint beberapa kali untuk testing:
 
 ```bash
-# Mint pertama - 100 coins
+# Mint pertama - 1 coins
 sui client call \
   --package <PACKAGE_ID> \
   --module coin_module \
   --function mint \
-  --args <TREASURY_CAP_OBJECT_ID> 100
+  --args <TREASURY_CAP_OBJECT_ID> 1000000
 
 # Mint kedua - 200 coins
 sui client call \
   --package <PACKAGE_ID> \
   --module coin_module \
   --function mint \
-  --args <TREASURY_CAP_OBJECT_ID> 200
+  --args <TREASURY_CAP_OBJECT_ID> 2000000
 
 # Mint ketiga - 300 coins
 sui client call \
   --package <PACKAGE_ID> \
   --module coin_module \
   --function mint \
-  --args <TREASURY_CAP_OBJECT_ID> 300
+  --args <TREASURY_CAP_OBJECT_ID> 3000000
 ```
 
 **Simpan Coin Object IDs dari setiap output!**
 
-### 8.3 Check Your Coin Balance
+### 6.3 Check Your Coin Balance
 
 ```bash
 # Lihat semua coins di wallet
@@ -468,7 +298,7 @@ sui client balance
 sui client objects
 ```
 
-### 8.4 View Coin Details
+### 6.4 View Coin Details
 
 ```bash
 # Lihat details coin object
@@ -487,11 +317,11 @@ sui client object <COIN_OBJECT_ID> --json | jq '.content.fields'
 }
 ```
 
-### 8.5 Burn Coins
+### 6.5 Burn Coins
 
 ```bash
 # Burn/Destroy coin (permanent!)
-# Burn coin pertama (100 coins)
+# Burn coin pertama (1 coins)
 sui client call \
   --package <PACKAGE_ID> \
   --module coin_module \
@@ -501,35 +331,34 @@ sui client call \
 
 ⚠️ **Warning:** Burning permanent! Coin tidak bisa di-recover & total supply berkurang.
 
-**Verify:** Setelah burn, cek balance - seharusnya coin 100 coins sudah hilang.
+**Verify:** Setelah burn, cek balance - seharusnya coin 1 coins sudah hilang.
 
-### 8.6 Split Coins
+### 6.6 Split Coins
 
 ```bash
-# Split coin 300 coins - ambil 150 coins
+# Split coin 3 coins - ambil 1.5 coins
 sui client split-coin \
-  --coin-id <COIN_300_COINS_ID> \
-  --amounts 150
+  --coin-id <COIN_3_COINS_ID> \
+  --amounts 1500000
 
 # Sekarang Anda punya:
-# - Original coin: 150 coins (sisa)
-# - New coin: 150 coins (hasil split)
+# - Original coin: 1.5 coins (sisa)
+# - New coin: 1.5 coins (hasil split)
 ```
 
-### 8.7 Merge Coins
+### 6.7 Merge Coins
 
 ```bash
-# Gabungkan coin 200 coins + coin 150 coins (hasil split)
+# Gabungkan coin 1.5 coins + coin 1.5 coins (hasil split)
 sui client merge-coin \
-  --primary-coin <COIN_200_COINS_ID> \
-  --coin-to-merge <COIN_150_COINS_ID>
+  --primary-coin <COIN_1.5_COINS_ID> \
+  --coin-to-merge <COIN_1.5_COINS_ID>
 
 # Hasilnya:
-# - Primary coin: 350 coins (200 + 150)
-# - Coin yang di-merge: hilang (deleted)
+# - Primary coin:  coins (1.5 + 1.5)
 ```
 
-### 8.8 Transfer Coins
+### 6.8 Transfer Coins
 
 ```bash
 # Transfer coin ke address lain
@@ -542,7 +371,7 @@ sui client transfer \
 
 **Note:** Transfer akan mengirim seluruh coin object.
 
-### 8.9 View di Explorer
+### 6.9 View di Explorer
 
 1. Buka https://suiscan.xyz/testnet
 2. Paste **Coin Object ID** atau **Package ID**
@@ -614,7 +443,6 @@ sui client transfer \
 - ✅ **Fungible Coin** - Coin yang dapat ditukar 1:1
 - ✅ **CoinMetadata** - Metadata otomatis untuk display di wallet
 - ✅ **TreasuryCap** - Capability untuk mint & burn
-- ✅ **Decimals** - Presisi coin (6, 9, atau 18)
 - ✅ **Merge/Split** - Coin operations yang unik di Sui
 - ✅ **One-Time Witness (OTW)** - Init pattern untuk create currency
 
@@ -627,6 +455,7 @@ sui client transfer \
 | **Transfer** | Kirim coin ke address lain | Coin ownership        |
 | **Split**    | Pecah 1 coin jadi 2        | Coin ownership        |
 | **Merge**    | Gabung 2 coin jadi 1       | Ownership kedua coins |
+
 
 # 🎨 Challenge (Opsional)
 
