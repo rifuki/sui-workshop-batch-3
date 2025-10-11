@@ -18,7 +18,7 @@ Pastikan sudah:
 
 ```bash
 # Navigate to UI folder
-cd sui-workshop-batch-3/day2/nft/ui
+cd day3/nft/ui
 
 # Install dependencies
 bun install
@@ -60,17 +60,17 @@ Contoh output:
 ╭─────────────────────────────────────────────────────╮
 │ Published Objects                                   │
 ├─────────────────────────────────────────────────────┤
-│ PackageID: 0xabcd1234...                           │  ← Copy ini
+│ PackageID: 0xabcd1234...                            │  ← Copy ini
 ╰─────────────────────────────────────────────────────╯
 
 ╭─────────────────────────────────────────────────────╮
 │ Created Objects                                     │
 ├─────────────────────────────────────────────────────┤
-│ ObjectID: 0xefgh5678...                            │
-│ ObjectType: ...::display::Display<...::NFT>       │  (Display object, tidak perlu)
+│ ObjectID: 0xefgh5678...                             │
+│ ObjectType: ...::display::Display<...::NFT>         │  (Display object, tidak perlu)
 ├─────────────────────────────────────────────────────┤
-│ ObjectID: 0xijkl9012...                            │
-│ ObjectType: ...::package::Publisher                │  (Publisher object, tidak perlu)
+│ ObjectID: 0xijkl9012...                             │
+│ ObjectType: ...::package::Publisher                 │  (Publisher object, tidak perlu)
 ╰─────────────────────────────────────────────────────╯
 ```
 
