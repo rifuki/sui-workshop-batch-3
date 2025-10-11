@@ -211,6 +211,7 @@ sui client publish
 ```
 
 **⚠️ PENTING - Simpan Output Ini:**
+
 ```
 ╭─────────────────────────────────────────────────────╮
 │ Published Objects                                   │
@@ -263,6 +264,12 @@ sui client object <METADATA_OBJECT_ID> --json | jq '.content.fields'
 
 Mari mint beberapa kali untuk testing:
 
+**💡 Kalkulasi Amount:**
+
+- Rumus: `amount = jumlah_token × 10^decimals`
+- Decimals = 6, jadi `10^6 = 1,000,000`
+- Untuk mint 100 token: `1 × 1,000,000 = 1,000,000`
+
 ```bash
 # Mint pertama - 1 coins
 sui client call \
@@ -312,7 +319,7 @@ sui client object <COIN_OBJECT_ID> --json | jq '.content.fields'
 
 ```json
 {
-  "balance": "700",
+  "balance": "600",
   "id": { "id": "0x..." }
 }
 ```
@@ -455,7 +462,6 @@ sui client transfer \
 | **Transfer** | Kirim coin ke address lain | Coin ownership        |
 | **Split**    | Pecah 1 coin jadi 2        | Coin ownership        |
 | **Merge**    | Gabung 2 coin jadi 1       | Ownership kedua coins |
-
 
 # 🎨 Challenge (Opsional)
 
